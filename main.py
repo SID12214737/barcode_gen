@@ -86,7 +86,7 @@ def save_barcodes_to_pdf(start: int, end: int, rows=8, cols=3, pdf_name="barcode
 
     c.save()
     return pdf_path
-
+import traceback
 
 def on_generate():
     try:
@@ -113,7 +113,9 @@ def on_generate():
                 messagebox.showinfo("Done", "✅ PDF generated successfully!")
                 webbrowser.open_new(pdf_path)
             except Exception as e:
-                messagebox.showerror("Error", str(e))
+                error_text = f"{type(e).__name__}: {e}\n\n{traceback.format_exc()}"
+                print(error_text)
+                messagebox.showerror("Error", error_text)
             finally:
                 generate_button.config(state="normal", text="Generate PDF")
                 progress_bar["value"] = 0
@@ -121,10 +123,8 @@ def on_generate():
         threading.Thread(target=task, daemon=True).start()
 
     except Exception as e:
-        messagebox.showerror("Error", str(e))
+        messagebox.showerror("Error", f"{type(e).__name__}: {e}\n\n{traceback.format_exc()}")
 
-
-from tkinter import Tk, Label, Entry, Button, IntVar, Checkbutton, messagebox, ttk, Frame
 
 # --- Smart Input Validation Helpers ---
 def validate_int(entry_widget, min_val, max_val, required=True):
