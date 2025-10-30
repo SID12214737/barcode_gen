@@ -1,4 +1,5 @@
 import os
+import sys
 import threading
 import webbrowser
 from tkinter import Tk, Label, Entry, Button, IntVar, Checkbutton, messagebox, ttk
@@ -10,7 +11,18 @@ from reportlab.lib.units import mm
 from PIL import Image
 
 
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        base_path = sys._MEIPASS  # PyInstaller temp folder
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 def generate_barcode(number: str, output_dir="barcodes"):
+    output_dir = resource_path(output_dir)
     os.makedirs(output_dir, exist_ok=True)
     filename = os.path.join(output_dir, number)
     barcode = EAN13(number, writer=ImageWriter())
@@ -20,7 +32,8 @@ def generate_barcode(number: str, output_dir="barcodes"):
 
 def save_barcodes_to_pdf(start: int, end: int, rows=8, cols=3, pdf_name="barcodes.pdf",
                          draw_grid=True, progress_callback=None):
-    c = canvas.Canvas(pdf_name, pagesize=A4)
+    pdf_path = os.path.join(os.getcwd(), "barcodes.pdf")
+    c = canvas.Canvas(pdf_path, pagesize=A4)
     page_width, page_height = A4
     cell_width = page_width / cols
     cell_height = page_height / rows
