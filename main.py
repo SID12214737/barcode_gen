@@ -39,9 +39,7 @@ def fix_barcode_font():
         except Exception as e:
             print(f"Could not set font: {e}")
     
-    # Fallback: disable text rendering completely
-    ImageWriter.default_writer_options['write_text'] = False
-    
+
 fix_barcode_font()
 
 
@@ -54,6 +52,18 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+import random
+import math
+
+def generate_unique_barcodes(count: int) -> list[str]:
+    """Generate a list of unique random 12-digit numbers."""
+    barcodes = set()
+    while len(barcodes) < count:
+        number = ''.join(random.choices("0123456789", k=12))
+        barcodes.add(number)
+    return list(barcodes)
+
+
 def generate_barcode(number: str, output_dir):
     """Generate a single barcode image and return its path."""
     os.makedirs(output_dir, exist_ok=True)
@@ -61,7 +71,7 @@ def generate_barcode(number: str, output_dir):
     
     # Configure writer options to prevent font issues
     writer_options = {
-        'write_text': False,  # Disable text to avoid font errors
+        'write_text': True,
         'module_height': 15.0,
         'module_width': 0.2,
         'quiet_zone': 6.5,
@@ -72,73 +82,116 @@ def generate_barcode(number: str, output_dir):
     return filename + ".png"
 
 
-def save_barcodes_to_pdf(start: int, end: int, rows=8, cols=3, pdf_name="barcodes.pdf",
+def calculate_max_rows(
+    cols: int,
+    page_height=A4[1],
+    page_width=A4[0],
+    base_barcode_width=40 * mm,
+    base_barcode_height=20 * mm,
+    min_barcode_height=12 * mm,
+    page_margin_top=1 * mm,
+    page_margin_bottom=1 * mm,
+    page_margin_left=1 * mm,
+    page_margin_right=1 * mm,
+) -> int:
+    """
+    Calculate how many rows of 12-digit horizontal barcodes fit on a page,
+    adjusting for the number of columns and barcode aspect ratio.
+    
+    Args:
+        cols: Number of columns.
+        page_height: Page height (default A4).
+        page_width: Page width (default A4).
+        base_barcode_width: Desired width of one barcode at 1 column (default 40mm).
+        base_barcode_height: Desired height at 1 column (default 20mm).
+        min_barcode_height: Minimum readable height (default 12mm).
+        page_margin_*: Page margins.
+    
+    Returns:
+        Maximum number of rows that fit on the page.
+    """
+
+    # Available drawing area
+    available_height = page_height - page_margin_top - page_margin_bottom
+    available_width = page_width - page_margin_left - page_margin_right
+
+    # Compute actual cell width given the number of columns
+    col_width = available_width / cols
+
+    # Maintain barcode aspect ratio (horizontal)
+    aspect_ratio = base_barcode_height / base_barcode_width
+    adjusted_barcode_height = max(min_barcode_height, col_width * aspect_ratio)
+
+    # Calculate how many rows fit vertically
+    max_rows = int(available_height / adjusted_barcode_height)
+
+    return max(1, max_rows)
+
+
+def save_barcodes_to_pdf(count: int, cols=3, pdf_name="barcodes.pdf",
                          draw_grid=True, progress_callback=None):
-    """Generate PDF with barcodes arranged in a grid layout."""
+    """Generate PDF with random unique barcodes arranged in a grid layout."""
     pdf_path = os.path.join(os.getcwd(), pdf_name)
-    
-    # Create temporary directory for barcode images
     temp_dir = tempfile.mkdtemp()
-    
+
     try:
         c = canvas.Canvas(pdf_path, pagesize=A4)
         page_width, page_height = A4
-        cell_width = page_width / cols
-        cell_height = page_height / rows
-        numbers = range(start, end + 1)
 
-        x_margin = 5 * mm
-        y_margin = 5 * mm
-
-        total = len(numbers)
+        # Random barcode numbers
+        numbers = generate_unique_barcodes(count)
         
-        for idx, num in enumerate(numbers):
-            number_str = str(num).zfill(12)
-            if len(number_str) > 12:
-                raise ValueError("Number too long for EAN-13 (max 12 digits).")
+        # Calculate max rows dynamically based on number of columns
+        max_rows = calculate_max_rows(cols, page_height)
+        barcodes_per_page = cols * max_rows
+        
+        # Divide page into rows and columns
+        cell_width = page_width / cols
+        cell_height = page_height / max_rows
 
-            # Generate barcode in temp directory
+        x_margin = 1 * mm
+        y_margin = 1 * mm
+
+        for idx, number_str in enumerate(numbers):
             img_path = generate_barcode(number_str, temp_dir)
             
-            row = (idx // cols) % rows
-            col = idx % cols
+            # Calculate position on current page
+            page_idx = idx % barcodes_per_page
+            row = page_idx // cols
+            col = page_idx % cols
 
-            # Start new page when grid is full
-            if idx > 0 and idx % (rows * cols) == 0:
+            # Start new page when needed
+            if idx > 0 and idx % barcodes_per_page == 0:
                 c.showPage()
 
-            # Draw grid if enabled
+            # Draw grid cell
             if draw_grid:
-                c.rect(col * cell_width, page_height - (row + 1) * cell_height, 
+                c.rect(col * cell_width, page_height - (row + 1) * cell_height,
                        cell_width, cell_height)
 
-            # Open and scale image
+            # Scale and position barcode image
             with Image.open(img_path) as img:
                 img_width, img_height = img.size
                 scale = min(
-                    (cell_width - 2 * x_margin) / img_width, 
+                    (cell_width - 2 * x_margin) / img_width,
                     (cell_height - 2 * y_margin) / img_height
                 )
                 img_width *= scale
                 img_height *= scale
 
-            # Center image in cell
             x = col * cell_width + (cell_width - img_width) / 2
             y = page_height - (row + 1) * cell_height + (cell_height - img_height) / 2
-
             c.drawImage(img_path, x, y, width=img_width, height=img_height)
 
-            # Update progress
             if progress_callback:
-                progress_callback(int((idx + 1) / total * 100))
+                progress_callback(int((idx + 1) / count * 100))
 
         c.save()
-        
     finally:
-        # Clean up temporary directory
         shutil.rmtree(temp_dir, ignore_errors=True)
-    
+
     return pdf_path
+
 
 
 def validate_int(entry_widget, min_val, max_val, required=True):
@@ -176,7 +229,7 @@ class BarcodeGeneratorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("📦 Barcode PDF Generator")
-        self.root.geometry("400x480")
+        self.root.geometry("400x520")
         self.root.resizable(False, False)
         
         self.base_font = ("Arial", 11)
@@ -195,36 +248,32 @@ class BarcodeGeneratorApp:
             pady=10
         )
         title_label.pack()
-        
-        # Start Number
-        Label(self.root, text="Start Number:", font=self.bold_font).pack(pady=(5, 0))
-        self.start_entry = Entry(self.root, font=self.base_font, width=25)
-        self.start_entry.pack(pady=(0, 5))
-        self.start_entry.bind("<KeyRelease>", lambda e: validate_numeric_input(self.start_entry))
-        self.start_entry.bind("<FocusOut>", lambda e: validate_int(self.start_entry, 0, 999999999999))
-        
-        # End Number
-        Label(self.root, text="End Number:", font=self.bold_font).pack(pady=(5, 0))
-        self.end_entry = Entry(self.root, font=self.base_font, width=25)
-        self.end_entry.pack(pady=(0, 5))
-        self.end_entry.bind("<KeyRelease>", lambda e: validate_numeric_input(self.end_entry))
-        self.end_entry.bind("<FocusOut>", lambda e: validate_int(self.end_entry, 0, 999999999999))
-        
-        # Rows and Columns Frame
+
+        # Number of codes
+        Label(self.root, text="Number of Codes:", font=self.bold_font).pack(pady=(5, 0))
+        self.count_entry = Entry(self.root, font=self.base_font, width=25)
+        self.count_entry.insert(0, "24")
+        self.count_entry.pack(pady=(0, 5))
+        self.count_entry.bind("<KeyRelease>", lambda e: validate_numeric_input(self.count_entry))
+
+        # Columns
         frame_rc = Frame(self.root)
         frame_rc.pack(pady=10)
         
-        Label(frame_rc, text="Rows:", font=self.bold_font).grid(row=0, column=0, padx=5)
-        self.rows_entry = Entry(frame_rc, width=8, font=self.base_font)
-        self.rows_entry.insert(0, "8")
-        self.rows_entry.grid(row=0, column=1, padx=5)
-        self.rows_entry.bind("<FocusOut>", lambda e: validate_int(self.rows_entry, 1, 20))
-        
-        Label(frame_rc, text="Cols:", font=self.bold_font).grid(row=0, column=2, padx=5)
+        Label(frame_rc, text="Columns:", font=self.bold_font).grid(row=0, column=0, padx=5)
         self.cols_entry = Entry(frame_rc, width=8, font=self.base_font)
         self.cols_entry.insert(0, "3")
-        self.cols_entry.grid(row=0, column=3, padx=5)
-        self.cols_entry.bind("<FocusOut>", lambda e: validate_int(self.cols_entry, 1, 10))
+        self.cols_entry.grid(row=0, column=1, padx=5)
+        self.cols_entry.bind("<KeyRelease>", lambda e: self.update_layout_info())
+        
+        # Layout info label
+        self.layout_info = Label(
+            self.root, 
+            text="Layout: 3 cols × 5 rows = 15 per page", 
+            font=self.base_font,
+            fg="blue"
+        )
+        self.layout_info.pack(pady=5)
         
         # Options
         self.grid_var = IntVar(value=1)
@@ -235,13 +284,6 @@ class BarcodeGeneratorApp:
             font=self.base_font
         ).pack(pady=5)
         
-        # PDF Name
-        pdf_frame = Frame(self.root)
-        pdf_frame.pack(pady=5)
-        Label(pdf_frame, text="PDF Name:", font=self.bold_font).pack(side="left", padx=5)
-        self.pdf_name_entry = Entry(pdf_frame, width=20, font=self.base_font)
-        self.pdf_name_entry.insert(0, "barcodes.pdf")
-        self.pdf_name_entry.pack(side="left")
         
         # Generate Button
         self.generate_button = Button(
@@ -273,52 +315,53 @@ class BarcodeGeneratorApp:
         )
         self.status_label.pack(pady=5)
     
-    def validate_all_inputs(self):
-        """Check that all fields are filled and valid before generating."""
-        ok1 = validate_int(self.start_entry, 0, 999999999999)
-        ok2 = validate_int(self.end_entry, 0, 999999999999)
-        ok3 = validate_int(self.rows_entry, 1, 20)
-        ok4 = validate_int(self.cols_entry, 1, 10)
-
-        if not all([ok1, ok2, ok3, ok4]):
-            messagebox.showerror("Validation Error", "Please fill all fields with valid numbers!")
-            return False
-        
-        # Check start <= end
-        start = int(self.start_entry.get())
-        end = int(self.end_entry.get())
-        if start > end:
-            messagebox.showerror("Validation Error", "Start number must be less than or equal to end number!")
-            return False
-        
-        # Validate PDF name
-        pdf_name = self.pdf_name_entry.get().strip()
-        if not pdf_name:
-            messagebox.showerror("Validation Error", "Please enter a PDF filename!")
-            return False
-        
-        if not pdf_name.endswith('.pdf'):
-            pdf_name += '.pdf'
-            self.pdf_name_entry.delete(0, 'end')
-            self.pdf_name_entry.insert(0, pdf_name)
-        
-        return True
+    def update_layout_info(self):
+        """Update the layout information label when columns change."""
+        try:
+            cols = int(self.cols_entry.get())
+            if 1 <= cols <= 10:
+                rows = calculate_max_rows(cols)
+                per_page = cols * rows
+                self.layout_info.config(
+                    text=f"Layout: {cols} cols × {rows} rows = {per_page} per page",
+                    fg="blue"
+                )
+                self.cols_entry.config(bg="white")
+            else:
+                self.cols_entry.config(bg="#ffcccc")
+        except ValueError:
+            if self.cols_entry.get():
+                self.cols_entry.config(bg="#ffcccc")
+    
     
     def on_generate_with_validation(self):
+       
         """Validate inputs and start generation process."""
-        if not self.validate_all_inputs():
+        ok1 = validate_int(self.count_entry, 1, 500)
+        ok2 = validate_int(self.cols_entry, 1, 10)
+        if not all([ok1, ok2]):
+            messagebox.showerror("Validation Error", "Please fill all fields with valid numbers!")
             return
-        self.on_generate()
+        
+        # Ask user where to save the file
+        pdf_path = filedialog.asksaveasfilename(
+            title="Save Barcode PDF As",
+            defaultextension=".pdf",
+            filetypes=[("PDF files", "*.pdf")],
+            initialfile="barcodes.pdf"
+        )
+        
+        if not pdf_path:
+            return  # user cancelled
+
+        self.on_generate(pdf_path)
     
-    def on_generate(self):
+    def on_generate(self, pdf_path):
         """Generate the PDF in a separate thread."""
         try:
-            start = int(self.start_entry.get())
-            end = int(self.end_entry.get())
-            rows = int(self.rows_entry.get())
+            count = int(self.count_entry.get())
             cols = int(self.cols_entry.get())
             draw_grid = bool(self.grid_var.get())
-            pdf_name = self.pdf_name_entry.get().strip()
 
             self.progress_bar["value"] = 0
             self.generate_button.config(state="disabled")
@@ -326,19 +369,17 @@ class BarcodeGeneratorApp:
 
             def task():
                 try:
-                    pdf_path = save_barcodes_to_pdf(
-                        start, end, rows, cols,
-                        pdf_name=pdf_name,
+                    pdf_result_path = save_barcodes_to_pdf(
+                        count, cols,
+                        pdf_name=os.path.basename(pdf_path),
                         draw_grid=draw_grid,
-                        progress_callback=lambda p: self.root.after(
-                            0, 
-                            self.update_progress, 
-                            p
-                        )
+                        progress_callback=lambda p: self.root.after(0, self.update_progress, p)
                     )
-                    
+                    # Move result to chosen location
+                    shutil.move(pdf_result_path, pdf_path)
+
                     self.root.after(0, self.on_generation_complete, pdf_path)
-                    
+
                 except Exception as e:
                     error_text = f"{type(e).__name__}: {str(e)}"
                     self.root.after(0, self.on_generation_error, error_text)
@@ -347,6 +388,7 @@ class BarcodeGeneratorApp:
 
         except Exception as e:
             messagebox.showerror("Error", f"{type(e).__name__}: {str(e)}")
+
     
     def update_progress(self, value):
         """Update progress bar value."""
