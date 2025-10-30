@@ -1,0 +1,13 @@
+{
+  "count": "50",
+  "cols": "3",
+  "barcode_width": "40",
+  "barcode_height": "20",
+  "margin_top": "5",
+  "margin_bottom": "5",
+  "margin_left": "5",
+  "margin_right": "5",
+  "mode": "random",
+  "start_number": "00000000002",
+  "draw_grid": true
+}
