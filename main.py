@@ -3,6 +3,7 @@ import sys
 import threading
 import webbrowser
 from tkinter import Tk, Label, Entry, Button, IntVar, Checkbutton, messagebox, ttk, Frame
+import barcode
 from barcode import EAN13
 from barcode.writer import ImageWriter
 from reportlab.pdfgen import canvas
@@ -10,6 +11,17 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from PIL import Image
 
+import os, sys
+def fix_barcode_font():
+    """Force python-barcode to use a known, bundled font file."""
+    font_path = os.path.join(os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__), "arial.ttf")
+    if not os.path.exists(font_path):
+        # fallback: use system font if running locally
+        font_path = "C:\\Windows\\Fonts\\arial.ttf"
+    ImageWriter.font_path = font_path
+    barcode.writer.ImageWriter.font_path = font_path
+
+fix_barcode_font()
 
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
