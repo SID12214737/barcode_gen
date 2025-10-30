@@ -15,13 +15,26 @@ import shutil
 
 def fix_barcode_font():
     """Force python-barcode to use a known, bundled font file."""
-    font_path = os.path.join(
-        os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__), 
-        "arial.ttf"
-    )
-    if not os.path.exists(font_path):
-        font_path = "C:\\Windows\\Fonts\\arial.ttf"
-    ImageWriter.font_path = font_path
+    # Try multiple font locations
+    possible_fonts = [
+        os.path.join(os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__), "arial.ttf"),
+        "C:\\Windows\\Fonts\\arial.ttf",
+        "C:\\Windows\\Fonts\\Arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
+        "/System/Library/Fonts/Helvetica.ttc",  # macOS
+    ]
+    
+    font_path = None
+    for path in possible_fonts:
+        if os.path.exists(path):
+            font_path = path
+            break
+    
+    if font_path:
+        ImageWriter.font_path = font_path
+    else:
+        # If no font found, disable text rendering (barcode will still work)
+        print("Warning: No suitable font found. Barcodes will be generated without text labels.")
 
 
 fix_barcode_font()
@@ -40,8 +53,17 @@ def generate_barcode(number: str, output_dir):
     """Generate a single barcode image and return its path."""
     os.makedirs(output_dir, exist_ok=True)
     filename = os.path.join(output_dir, number)
+    
+    # Configure writer options to prevent font issues
+    writer_options = {
+        'write_text': False,  # Disable text to avoid font errors
+        'module_height': 15.0,
+        'module_width': 0.2,
+        'quiet_zone': 6.5,
+    }
+    
     barcode_obj = EAN13(number, writer=ImageWriter())
-    barcode_obj.save(filename)
+    barcode_obj.save(filename, options=writer_options)
     return filename + ".png"
 
 
