@@ -12,14 +12,16 @@ from PIL import Image
 import tempfile
 import shutil
 
-
 def fix_barcode_font():
     """Force python-barcode to use a known, bundled font file."""
+    from barcode.writer import ImageWriter
+    
     # Try multiple font locations
     possible_fonts = [
         os.path.join(os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__), "arial.ttf"),
         "C:\\Windows\\Fonts\\arial.ttf",
         "C:\\Windows\\Fonts\\Arial.ttf",
+        "C:\\Windows\\Fonts\\DejaVuSans.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
         "/System/Library/Fonts/Helvetica.ttc",  # macOS
     ]
@@ -31,12 +33,15 @@ def fix_barcode_font():
             break
     
     if font_path:
-        ImageWriter.font_path = font_path
-    else:
-        # If no font found, disable text rendering (barcode will still work)
-        print("Warning: No suitable font found. Barcodes will be generated without text labels.")
-
-
+        try:
+            ImageWriter.font_path = font_path
+            print(f"Using font: {font_path}")
+        except Exception as e:
+            print(f"Could not set font: {e}")
+    
+    # Fallback: disable text rendering completely
+    ImageWriter.default_writer_options['write_text'] = False
+    
 fix_barcode_font()
 
 

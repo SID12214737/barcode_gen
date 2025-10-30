@@ -1,18 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+import sys
+
 block_cipher = None
 
+# Get the Windows font path
+windows_fonts = os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts', 'arial.ttf')
+
+# Add fonts as data files
+added_files = []
+if os.path.exists(windows_fonts):
+    added_files.append((windows_fonts, '.'))
+
 a = Analysis(
-    ['main.py'],
+    ['your_script_name.py'],
     pathex=[],
     binaries=[],
-    datas=[],
-    hiddenimports=[
-        'reportlab.pdfbase._fontdata',
-        'reportlab.pdfbase.ttfonts',
-        'reportlab.pdfbase._cidfontdata',
-        'reportlab.graphics.barcode',
-    ],
+    datas=added_files,
+    hiddenimports=['PIL._tkinter_finder'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -22,11 +28,6 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
-
-# Collect reportlab data files
-from PyInstaller.utils.hooks import collect_data_files
-datas = collect_data_files('reportlab')
-a.datas += datas
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
@@ -50,4 +51,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=None,
 )
