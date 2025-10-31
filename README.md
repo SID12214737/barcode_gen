@@ -68,6 +68,7 @@ python main.py
 * Each page is automatically filled with your selected number of rows and columns.
 * Example output file:
 
+![Example output file](shtrix_kodlar.pdf)
   ```
   shtrix_kodlar.pdf
   ```
@@ -109,5 +110,3 @@ This project is free to use and modify for personal or educational purposes.
 ---
 
 **Made with ❤️ in Python and Tkinter**
-
-```
