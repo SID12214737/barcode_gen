@@ -1,6 +1,3 @@
-Here’s a clean and professional **`README.md`** for your barcode generator project 👇
-
----
 
 ````markdown
 # 📦 Shtrix-kod PDF Generatori
