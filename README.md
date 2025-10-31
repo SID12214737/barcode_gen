@@ -6,9 +6,9 @@ Easily generate **random or sequential Code128 barcodes** and export them neatly
 
 ---
 
-## 🖼️ Screenshot
+## Screenshot
 
-![App Screenshot](screenshot.png)
+![App Screenshot](Screenshot.png)
 
 ---
 
@@ -27,16 +27,20 @@ Easily generate **random or sequential Code128 barcodes** and export them neatly
 
 ---
 
-## 🧰 Requirements (for source build)
+## Requirements (for source build)
 
 If you want to run from source (not using the `.exe`), install:
+```bash
+pip install -r requirements.txt
+````
+or
 ```bash
 pip install pillow python-barcode reportlab
 ````
 
 ---
 
-## 💻 Running on Windows
+## Running on Windows
 
 ### Option 1 — Use the prebuilt executable
 
@@ -44,7 +48,7 @@ pip install pillow python-barcode reportlab
 2. Double-click it to launch the app.
 3. Choose your settings and click **“PDF yaratish”** to generate the barcode sheet.
 
-✅ No installation required — just run and use!
+No installation required — just run and use!
 
 ---
 
@@ -58,7 +62,7 @@ python main.py
 
 ---
 
-## 📝 Output
+## Output
 
 * Barcodes are saved in a single **PDF file** you choose.
 * Each page is automatically filled with your selected number of rows and columns.
@@ -70,7 +74,7 @@ python main.py
 
 ---
 
-## ⚙️ App Settings
+## App Settings
 
 All app settings (count, layout, mode, margins, etc.) are stored automatically in:
 
@@ -82,7 +86,7 @@ You can safely delete it to reset the defaults.
 
 ---
 
-## 🧑‍💻 Build Executable (optional)
+## Build Executable (optional)
 
 If you want to rebuild your own `.exe`:
 
@@ -107,5 +111,3 @@ This project is free to use and modify for personal or educational purposes.
 **Made with ❤️ in Python and Tkinter**
 
 ```
-
----
