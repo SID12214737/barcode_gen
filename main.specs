@@ -1,36 +1,39 @@
-# -*- mode: python ; coding: utf-8 -*-
-
+from PyInstaller.utils.hooks import collect_data_files
 import os
 import sys
 
-block_cipher = None
+# Set paths
+script_name = "main.py"
 
-# Get the Windows font path
-windows_fonts = os.path.join(os.environ.get('WINDIR', 'C:\\Windows'), 'Fonts', 'arial.ttf')
+# Collect font files for Windows
+font_files = [
+    os.path.join("C:\\", "Windows", "Fonts", "arial.ttf"),  # Common Arial font
+    os.path.join("C:\\", "Windows", "Fonts", "Arial.ttf"),  # Alternative Arial font
+]
 
-# Add fonts as data files
-added_files = []
-if os.path.exists(windows_fonts):
-    added_files.append((windows_fonts, '.'))
+# Filter out non-existing font paths
+font_files = [font for font in font_files if os.path.exists(font)]
 
+# Collect data files for the 'barcode' module
+barcode_data_files = collect_data_files('barcode')
+
+# Define the PyInstaller spec
 a = Analysis(
-    ['your_script_name.py'],
-    pathex=[],
+    [script_name],  
+    pathex=['.'],  # Path to where your script is
     binaries=[],
-    datas=added_files,
-    hiddenimports=['PIL._tkinter_finder'],
+    datas=collect_data_files('PIL', include_py_files=True) + [(font, 'fonts') for font in font_files] + barcode_data_files,
+    hiddenimports=['PIL.Image', 'PIL._imaging'],
     hookspath=[],
-    hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure, a.zipped_data)
 
+# Setting up the EXE (executable) generation
 exe = EXE(
     pyz,
     a.scripts,
@@ -38,18 +41,11 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='BarcodeGenerator',
+    name='main',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon=None,
+    console=False,  # Disable console window for GUI apps
+    
 )
