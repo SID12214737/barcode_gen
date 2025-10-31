@@ -1,5 +1,4 @@
 
-````markdown
 # 📦 Shtrix-kod PDF Generatori
 
 A simple yet powerful **Barcode PDF Generator** for Windows — built with **Python (Tkinter, ReportLab, and python-barcode)**.  
