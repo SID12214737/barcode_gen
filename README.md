@@ -66,9 +66,7 @@ python main.py
 
 * Barcodes are saved in a single **PDF file** you choose.
 * Each page is automatically filled with your selected number of rows and columns.
-* Example output file:
-
-[Example output file](shtrix_kodlar.pdf)
+* [Example output file](shtrix_kodlar.pdf)
   ```
   shtrix_kodlar.pdf
   ```
