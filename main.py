@@ -14,6 +14,7 @@ import tempfile
 import shutil
 import random
 import json
+import string
 
 
 def fix_barcode_font():
@@ -55,48 +56,75 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
-def generate_unique_barcodes(count: int, random_mode: bool = True, start_number: str = None) -> list:
+def generate_unique_barcodes(count: int, mode: str = "random_digits", start_code: str = None, length: int = 11) -> list:
     """
-    Generate a list of unique 11-digit numbers.
+    Generate a list of unique Code128 barcodes.
     
     Args:
         count: Number of barcodes to generate
-        random_mode: If True, generate random numbers. If False, generate incremental.
-        start_number: Starting number for incremental mode (11 digits)
+        mode: Generation mode - "random_digits", "random_alphanumeric", "random_full", "sequential"
+        start_code: Starting code for sequential mode
+        length: Length of generated codes
     
     Returns:
-        List of 11-digit barcode numbers as strings
+        List of barcode codes as strings
     """
-    if random_mode:
+    if mode == "random_digits":
+        # Only digits (0-9)
+        charset = string.digits
         barcodes = set()
         while len(barcodes) < count:
-            number = ''.join(random.choices("0123456789", k=11))
-            barcodes.add(number)
+            code = ''.join(random.choices(charset, k=length))
+            barcodes.add(code)
         return list(barcodes)
-    else:
-        # Incremental mode
-        if start_number is None or len(start_number) != 11 or not start_number.isdigit():
-            start_number = "00000000001"
+    
+    elif mode == "random_alphanumeric":
+        # Letters and digits (A-Z, 0-9)
+        charset = string.ascii_uppercase + string.digits
+        barcodes = set()
+        while len(barcodes) < count:
+            code = ''.join(random.choices(charset, k=length))
+            barcodes.add(code)
+        return list(barcodes)
+    
+    elif mode == "random_full":
+        # Full ASCII printable characters (excluding space for readability)
+        charset = string.ascii_letters + string.digits + string.punctuation.replace(' ', '')
+        barcodes = set()
+        while len(barcodes) < count:
+            code = ''.join(random.choices(charset, k=length))
+            barcodes.add(code)
+        return list(barcodes)
+    
+    elif mode == "sequential":
+        # Sequential mode - numeric only
+        if start_code is None or not start_code.isdigit():
+            start_code = "1".zfill(length)
         
         barcodes = []
-        current = int(start_number)
+        current = int(start_code)
         for i in range(count):
-            barcodes.append(str(current).zfill(11))
+            barcodes.append(str(current).zfill(length))
             current += 1
         return barcodes
+    
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
 
 
-def generate_barcode(number: str, output_dir, module_width=0.2, module_height=15.0):
+def generate_barcode(code: str, output_dir, module_width=0.2, module_height=15.0):
     """Generate a single barcode image and return its path.
     
     Args:
-        number: 11-digit barcode number
+        code: Barcode code string
         output_dir: Directory to save the barcode image
         module_width: Width of individual barcode modules (bars)
         module_height: Height of barcode bars in mm
     """
     os.makedirs(output_dir, exist_ok=True)
-    filename = os.path.join(output_dir, number)
+    # Use hash of code for filename to avoid filesystem issues with special chars
+    safe_filename = str(abs(hash(code)))
+    filename = os.path.join(output_dir, safe_filename)
     
     # Configure writer options to prevent font issues
     writer_options = {
@@ -106,7 +134,7 @@ def generate_barcode(number: str, output_dir, module_width=0.2, module_height=15
         'quiet_zone': 6.5,
     }
     
-    barcode_obj = Code128(number, writer=ImageWriter())
+    barcode_obj = Code128(code, writer=ImageWriter())
     barcode_obj.save(filename, options=writer_options)
     return filename + ".png"
 
@@ -143,8 +171,9 @@ def save_barcodes_to_pdf(
     pdf_name="barcodes.pdf",
     draw_grid=True,
     progress_callback=None,
-    random_mode=True,
-    start_number=None,
+    mode="random_digits",
+    start_code=None,
+    code_length=11,
     margin_top=5 * mm,
     margin_bottom=5 * mm,
     margin_left=5 * mm,
@@ -152,7 +181,7 @@ def save_barcodes_to_pdf(
     barcode_width=40 * mm,
     barcode_height=20 * mm,
 ):
-    """Generate PDF with random or incremental unique barcodes arranged in a grid layout."""
+    """Generate PDF with unique barcodes arranged in a grid layout."""
     pdf_path = os.path.join(os.getcwd(), pdf_name)
     temp_dir = tempfile.mkdtemp()
 
@@ -160,7 +189,7 @@ def save_barcodes_to_pdf(
         c = canvas.Canvas(pdf_path, pagesize=A4)
         page_width, page_height = A4
 
-        numbers = generate_unique_barcodes(count, random_mode, start_number)
+        codes = generate_unique_barcodes(count, mode, start_code, code_length)
         
         max_rows = calculate_max_rows(
             cols,
@@ -188,8 +217,8 @@ def save_barcodes_to_pdf(
         module_width = (barcode_width / mm) / 95.0
         module_height = barcode_height / mm
 
-        for idx, number_str in enumerate(numbers):
-            img_path = generate_barcode(number_str, temp_dir, module_width, module_height)
+        for idx, code_str in enumerate(codes):
+            img_path = generate_barcode(code_str, temp_dir, module_width, module_height)
             
             page_idx = idx % barcodes_per_page
             row = page_idx // cols
@@ -230,12 +259,12 @@ def save_barcodes_to_pdf(
 
 
 class BarcodeGeneratorApp:
-    """Modern ergonomic Shtrix-kod PDF Generator"""
+    """Modern ergonomic Shtrix-kod PDF Generator with full Code128 support"""
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Shtrix-kod PDF Generatori")
-        self.root.geometry("420x700")
+        self.root.title("Shtrix-kod PDF Generatori (Code128 To'liq)")
+        self.root.geometry("420x810")
         self.root.resizable(False, False)
 
         # Styling
@@ -268,6 +297,7 @@ class BarcodeGeneratorApp:
             data = {
                 "count": self.count_entry.get(),
                 "cols": self.cols_entry.get(),
+                "code_length": self.length_entry.get(),
                 "barcode_width": self.barcode_width_entry.get(),
                 "barcode_height": self.barcode_height_entry.get(),
                 "margin_top": self.margin_top_entry.get(),
@@ -275,7 +305,7 @@ class BarcodeGeneratorApp:
                 "margin_left": self.margin_left_entry.get(),
                 "margin_right": self.margin_right_entry.get(),
                 "mode": self.mode_var.get(),
-                "start_number": self.start_entry.get(),
+                "start_code": self.start_entry.get(),
                 "draw_grid": self.grid_var.get(),
             }
             with open(self.settings_file, "w", encoding="utf-8") as f:
@@ -289,6 +319,7 @@ class BarcodeGeneratorApp:
         entries = {
             self.count_entry: s.get("count"),
             self.cols_entry: s.get("cols"),
+            self.length_entry: s.get("code_length"),
             self.barcode_width_entry: s.get("barcode_width"),
             self.barcode_height_entry: s.get("barcode_height"),
             self.margin_top_entry: s.get("margin_top"),
@@ -303,9 +334,9 @@ class BarcodeGeneratorApp:
         
         if s.get("mode"):
             self.mode_var.set(s["mode"])
-        if s.get("start_number"):
+        if s.get("start_code"):
             self.start_entry.delete(0, "end")
-            self.start_entry.insert(0, s["start_number"])
+            self.start_entry.insert(0, s["start_code"])
         self.grid_var.set(s.get("draw_grid", True))
         self._toggle_mode()
         self._update_layout_info()
@@ -323,6 +354,8 @@ class BarcodeGeneratorApp:
         
         self.cols_entry = self._labeled_entry(frame_basic, "Ustunlar soni:", "3")
         self.cols_entry.bind("<KeyRelease>", lambda e: self._update_layout_info())
+
+        self.length_entry = self._labeled_entry(frame_basic, "Kod uzunligi:", "11")
 
         self.layout_info = ttk.Label(frame_basic, text="Joylashuv: 3 ustun × 5 qator = 15 sahifada", foreground="blue")
         self.layout_info.pack(anchor="w", pady=(4, 0))
@@ -357,13 +390,17 @@ class BarcodeGeneratorApp:
         frame_mode = ttk.LabelFrame(self.root, text="Shtrix-kod rejimi", padding=10)
         frame_mode.pack(padx=15, pady=5, fill="x")
 
-        self.mode_var = tk.StringVar(value="random")
-        ttk.Radiobutton(frame_mode, text="Tasodifiy shtrix-kodlar", variable=self.mode_var, value="random",
-                        command=self._toggle_mode).pack(anchor="w")
-        ttk.Radiobutton(frame_mode, text="Ketma-ket shtrix-kodlar", variable=self.mode_var, value="sequential",
-                        command=self._toggle_mode).pack(anchor="w")
+        self.mode_var = tk.StringVar(value="random_digits")
+        ttk.Radiobutton(frame_mode, text="Tasodifiy raqamlar (0-9)", variable=self.mode_var, 
+                        value="random_digits", command=self._toggle_mode).pack(anchor="w")
+        ttk.Radiobutton(frame_mode, text="Tasodifiy harf-raqamlar (A-Z, 0-9)", variable=self.mode_var, 
+                        value="random_alphanumeric", command=self._toggle_mode).pack(anchor="w")
+        ttk.Radiobutton(frame_mode, text="To'liq ASCII belgilar", variable=self.mode_var, 
+                        value="random_full", command=self._toggle_mode).pack(anchor="w")
+        ttk.Radiobutton(frame_mode, text="Ketma-ket raqamlar", variable=self.mode_var, 
+                        value="sequential", command=self._toggle_mode).pack(anchor="w")
 
-        self.start_entry = self._labeled_entry(frame_mode, "Boshlang'ich raqam: ", "00000000001")
+        self.start_entry = self._labeled_entry(frame_mode, "Boshlang'ich kod:", "0")
         self.start_entry.config(state="disabled")
 
         # --- Grid option ---
@@ -380,8 +417,9 @@ class BarcodeGeneratorApp:
         self.status = ttk.Label(self.root, text="Tayyor", foreground="gray")
         self.status.pack(pady=(0, 10))
         
+        ttk.Label(self.root, text="SID12214737", foreground="gray").pack(side="bottom", pady=3, anchor='w')
+        
         self._apply_settings()
-
 
         # Initialize layout info
         self._update_layout_info()
@@ -397,11 +435,11 @@ class BarcodeGeneratorApp:
         return entry
 
     def _toggle_mode(self):
-        """Toggle the start number entry based on mode."""
-        if self.mode_var.get() == "random":
-            self.start_entry.config(state="disabled")
-        else:
+        """Toggle the start code entry based on mode."""
+        if self.mode_var.get() == "sequential":
             self.start_entry.config(state="normal")
+        else:
+            self.start_entry.config(state="disabled")
 
     def _update_layout_info(self):
         """Update the layout information label."""
@@ -414,7 +452,6 @@ class BarcodeGeneratorApp:
             margin_left = float(self.margin_left_entry.get()) * mm
             margin_right = float(self.margin_right_entry.get()) * mm
             
-        
             rows = calculate_max_rows(
                 cols,
                 base_barcode_width=barcode_width,
@@ -436,15 +473,11 @@ class BarcodeGeneratorApp:
     def _validate_inputs(self):
         """Validate all input fields."""
         try:
-            count = int(self.count_entry.get())
-            if not (1 <= count <= 500):
-                messagebox.showerror("Xatolik", "Kodlar soni 1 va 500 orasida bo'lishi kerak!")
-                return False
             
-            # cols = int(self.cols_entry.get())
-            # if not (1 <= cols <= 20):
-            #     messagebox.showerror("Xatolik", "Ustunlar soni 1 va 15 orasida bo'lishi kerak!")
-            #     return False
+            code_length = int(self.length_entry.get())
+            if not (4 <= code_length <= 20):
+                messagebox.showerror("Xatolik", "Kod uzunligi 4 va 20 orasida bo'lishi kerak!")
+                return False
             
             barcode_width = float(self.barcode_width_entry.get())
             if not (10 <= barcode_width <= 200):
@@ -468,9 +501,9 @@ class BarcodeGeneratorApp:
                     return False
             
             if self.mode_var.get() == "sequential":
-                start_num = self.start_entry.get()
-                if len(start_num) != 11 or not start_num.isdigit():
-                    messagebox.showerror("Xatolik", "Boshlang'ich raqam 11 ta raqamdan iborat bo'lishi kerak!")
+                start_code = self.start_entry.get()
+                if not start_code or not start_code.isdigit():
+                    messagebox.showerror("Xatolik", "Ketma-ket rejimda boshlang'ich kod raqamlardan iborat bo'lishi kerak!")
                     return False
             
             return True
@@ -510,9 +543,10 @@ class BarcodeGeneratorApp:
         try:
             count = int(self.count_entry.get())
             cols = int(self.cols_entry.get())
+            code_length = int(self.length_entry.get())
             draw_grid = self.grid_var.get()
-            random_mode = (self.mode_var.get() == "random")
-            start_number = self.start_entry.get() if not random_mode else None
+            mode = self.mode_var.get()
+            start_code = self.start_entry.get() if mode == "sequential" else None
             
             barcode_width = float(self.barcode_width_entry.get()) * mm
             barcode_height = float(self.barcode_height_entry.get()) * mm
@@ -523,7 +557,14 @@ class BarcodeGeneratorApp:
 
             self.progress["value"] = 0
             self.btn_generate.config(state="disabled")
-            mode_text = "tasodifiy" if random_mode else "ketma-ket"
+            
+            mode_names = {
+                "random_digits": "tasodifiy raqamlar",
+                "random_alphanumeric": "tasodifiy harf-raqamlar",
+                "random_full": "to'liq ASCII",
+                "sequential": "ketma-ket"
+            }
+            mode_text = mode_names.get(mode, "noma'lum")
             self.status.config(text=f"{mode_text} shtrix-kodlar yaratilmoqda...", foreground="blue")
 
             def task():
@@ -532,8 +573,9 @@ class BarcodeGeneratorApp:
                         count, cols,
                         pdf_name=os.path.basename(pdf_path),
                         draw_grid=draw_grid,
-                        random_mode=random_mode,
-                        start_number=start_number,
+                        mode=mode,
+                        start_code=start_code,
+                        code_length=code_length,
                         margin_top=margin_top,
                         margin_bottom=margin_bottom,
                         margin_left=margin_left,
