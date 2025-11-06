@@ -414,7 +414,7 @@ class BarcodeGeneratorApp:
             margin_left = float(self.margin_left_entry.get()) * mm
             margin_right = float(self.margin_right_entry.get()) * mm
             
-            if 1 <= cols <= 10:
+            if 1 <= cols <= 15:
                 rows = calculate_max_rows(
                     cols,
                     base_barcode_width=barcode_width,
@@ -441,7 +441,7 @@ class BarcodeGeneratorApp:
                 return False
             
             cols = int(self.cols_entry.get())
-            if not (1 <= cols <= 10):
+            if not (1 <= cols <= 15):
                 messagebox.showerror("Xatolik", "Ustunlar soni 1 va 10 orasida bo'lishi kerak!")
                 return False
             
