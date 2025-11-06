@@ -429,6 +429,11 @@ class BarcodeGeneratorApp:
                     text=f"Joylashuv: {cols} ustun × {rows} qator = {per_page} sahifada",
                     foreground="blue"
                 )
+            else:
+                self.layout_info.config(
+                    text=f"Joylashuv: X ustun × X qator = X sahifada",
+                    foreground="blue"
+                )
         except (ValueError, ZeroDivisionError):
             pass
 
@@ -442,7 +447,7 @@ class BarcodeGeneratorApp:
             
             cols = int(self.cols_entry.get())
             if not (1 <= cols <= 15):
-                messagebox.showerror("Xatolik", "Ustunlar soni 1 va 10 orasida bo'lishi kerak!")
+                messagebox.showerror("Xatolik", "Ustunlar soni 1 va 15 orasida bo'lishi kerak!")
                 return False
             
             barcode_width = float(self.barcode_width_entry.get())
