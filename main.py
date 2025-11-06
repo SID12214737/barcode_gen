@@ -414,26 +414,22 @@ class BarcodeGeneratorApp:
             margin_left = float(self.margin_left_entry.get()) * mm
             margin_right = float(self.margin_right_entry.get()) * mm
             
-            if 1 <= cols <= 15:
-                rows = calculate_max_rows(
-                    cols,
-                    base_barcode_width=barcode_width,
-                    base_barcode_height=barcode_height,
-                    page_margin_top=margin_top,
-                    page_margin_bottom=margin_bottom,
-                    page_margin_left=margin_left,
-                    page_margin_right=margin_right
-                )
-                per_page = cols * rows
-                self.layout_info.config(
-                    text=f"Joylashuv: {cols} ustun × {rows} qator = {per_page} sahifada",
-                    foreground="blue"
-                )
-            else:
-                self.layout_info.config(
-                    text=f"Joylashuv: X ustun × X qator = X sahifada",
-                    foreground="blue"
-                )
+        
+            rows = calculate_max_rows(
+                cols,
+                base_barcode_width=barcode_width,
+                base_barcode_height=barcode_height,
+                page_margin_top=margin_top,
+                page_margin_bottom=margin_bottom,
+                page_margin_left=margin_left,
+                page_margin_right=margin_right
+            )
+            per_page = cols * rows
+            self.layout_info.config(
+                text=f"Joylashuv: {cols} ustun × {rows} qator = {per_page} sahifada",
+                foreground="blue"
+            )
+            
         except (ValueError, ZeroDivisionError):
             pass
 
@@ -445,10 +441,10 @@ class BarcodeGeneratorApp:
                 messagebox.showerror("Xatolik", "Kodlar soni 1 va 500 orasida bo'lishi kerak!")
                 return False
             
-            cols = int(self.cols_entry.get())
-            if not (1 <= cols <= 15):
-                messagebox.showerror("Xatolik", "Ustunlar soni 1 va 15 orasida bo'lishi kerak!")
-                return False
+            # cols = int(self.cols_entry.get())
+            # if not (1 <= cols <= 20):
+            #     messagebox.showerror("Xatolik", "Ustunlar soni 1 va 15 orasida bo'lishi kerak!")
+            #     return False
             
             barcode_width = float(self.barcode_width_entry.get())
             if not (10 <= barcode_width <= 200):
